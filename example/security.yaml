@@ -1,0 +1,18 @@
+grant-test.tencentcloudcr.com:
+  username: xxx
+  password: xxx
+grant-test2.tencentcloudcr.com:
+  username: xxx
+  password: xxx
+registry.cn-hangzhou.aliyuncs.com:
+  username: xxx
+  password: xxx
+ccr.ccs.tencentyun.com:
+  username: xxx
+  password: xxx
+registry.hub.docker.com:
+  username: xxx
+  password: xxx
+test-jingwei.tencentcloudcr.com:
+  username: xxx
+  password: xxx
