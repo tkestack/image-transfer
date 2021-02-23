@@ -49,7 +49,6 @@ func (ai *TCRAPIClient) GetAllNamespaceByName (secret map[string]configs.Secret,
 
 	var nsList []string
 	var tcrID string
-
 	secretID, secretKey, err := GetTcrSecret(secret)
 
 	if err != nil {
@@ -68,7 +67,6 @@ func (ai *TCRAPIClient) GetAllNamespaceByName (secret map[string]configs.Secret,
 
 	tcrID = *resp.Response.Registries[0].RegistryId
 
-
 	offset := int64(0)
 	count := 0
 	limit := int64(100)
@@ -81,7 +79,6 @@ func (ai *TCRAPIClient) GetAllNamespaceByName (secret map[string]configs.Secret,
 		}
 		namespaceCount := *resp.Response.TotalCount
 		count += len(resp.Response.NamespaceList)
-
 		for _, ns := range resp.Response.NamespaceList {
 			nsList = append(nsList, *ns.Name)
 		}
@@ -89,7 +86,7 @@ func (ai *TCRAPIClient) GetAllNamespaceByName (secret map[string]configs.Secret,
 		if int64(count) >= namespaceCount {
 			break
 		}else {
-			offset += limit
+			offset += 1
 		}
 
 	}
