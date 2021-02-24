@@ -96,7 +96,7 @@ func (ai *CCRAPIClient) GetAllNamespaceByName(secret map[string]configs.Secret, 
 		if int64(count) >= namespaceCount {
 			break
 		}else {
-			offset += limit
+			offset += 1
 		}
 
 	}
@@ -146,7 +146,7 @@ func (ai *CCRAPIClient) GenerateAllCcrRules(secret map[string]configs.Secret, cc
 		if int64(count) >= repoCount {
 			break
 		}else {
-			offset += limit
+			offset += 1
 		}
 
 	}
