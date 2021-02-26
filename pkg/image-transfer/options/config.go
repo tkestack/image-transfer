@@ -36,7 +36,8 @@ type ConfigOptions struct {
 	TCRRegion string
 	TCRName string
 	SecretFile string
-
+	// if target tag is exist override it
+	TagExistOverridden bool
 }
 
 // NewConfigOptions creates a NewConfigOptions object with default
@@ -67,7 +68,7 @@ func (o *ConfigOptions) AddFlags(fs *pflag.FlagSet) {
 		"default destinate namespace when destinate namespace is not" +
 		" given in the config file, can also be set with DEFAULT_NAMESPACE environment value")
 	fs.IntVar(&o.RoutineNums, "routines", 5,
-		"number of goroutines, default value is 5, max routines is 10")
+		"number of goroutines, default value is 5, max routines is 200")
 	fs.IntVar(&o.RetryNums, "retry", 2,
 		"number of retries, default value is 2")
 	fs.IntVar(&o.QPS, "qps", 100,
@@ -82,4 +83,5 @@ func (o *ConfigOptions) AddFlags(fs *pflag.FlagSet) {
 		"tcr name. this flag is used when flag ccrToTcr=true")
 	fs.StringVar(&o.SecretFile, "secretFile", o.SecretFile,
 		"Tencent Cloud secretId 、secretKey for access ccr and tcr. this flag is used when flag ccrToTcr=true")
+	fs.BoolVar(&o.TagExistOverridden, "tag-exist-overridden", true, "if target tag is exist, override it")
 }

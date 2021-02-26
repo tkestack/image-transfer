@@ -101,6 +101,7 @@ func (ai *CCRAPIClient) GetAllNamespaceByName(secret map[string]configs.Secret, 
 		for _, ns := range resp.Response.Data.NamespaceInfo {
 			nsList = append(nsList, *ns.Namespace)
 		}
+		log.Infof("ccr namespace offset %d limit %d resp is %s", offset, limit, resp.ToJsonString())
 
 		if int64(count) >= namespaceCount {
 			break

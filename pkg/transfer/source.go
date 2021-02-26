@@ -21,7 +21,11 @@ package transfer
 import (
 	"context"
 	"fmt"
+
+	"github.com/opencontainers/go-digest"
+
 	"io"
+
 
 	"github.com/containers/image/v5/docker"
 	"github.com/containers/image/v5/types"
@@ -162,4 +166,9 @@ func (i *ImageSource) GetTag() string {
 // GetSourceRepoTags gets all the tags of a repository which ImageSource belongs to
 func (i *ImageSource) GetSourceRepoTags() ([]string, error) {
 	return docker.GetRepositoryTags(i.ctx, i.sysctx, i.sourceRef)
+}
+
+// GetImageDigest checks if a tag exist for target, return target tag of digest
+func (i *ImageSource) GetImageDigest() (digest.Digest, error) {
+	return docker.GetDigest(i.ctx, i.sysctx, i.sourceRef)
 }

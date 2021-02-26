@@ -22,11 +22,14 @@ import (
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/pkg/blobinfocache/none"
 	"tkestack.io/image-transfer/pkg/log"
+	"github.com/containers/image/v5/pkg/blobinfocache/memory"
 )
 
 var (
 	// NoCache used to disable a blobinfocache
 	NoCache = none.NoCache
+	// Memory cache to enable a blobinfocache
+	Memory = memory.New()
 )
 
 // Job act as a sync action, it will pull a images from source to target
