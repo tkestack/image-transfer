@@ -19,15 +19,19 @@
 package ccrapis
 
 import (
-	"tkestack.io/image-transfer/configs"
-	"tkestack.io/image-transfer/pkg/log"
-	"tkestack.io/image-transfer/pkg/utils"
-	"github.com/pkg/errors"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"net/http"
+	"strings"
+
+	"github.com/pkg/errors"
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common"
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/profile"
 	tcr "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/tcr/v20190924"
-	"strings"
+	"tkestack.io/image-transfer/configs"
+	"tkestack.io/image-transfer/pkg/log"
+	"tkestack.io/image-transfer/pkg/utils"
 )
 
 // CCRAPIClient wrap http client
@@ -37,28 +41,34 @@ type CCRAPIClient struct {
 }
 
 var regionPrefix = map[string]string{
-	"ap-guangzhou": "",
-	"ap-shanghai": "",
-	"ap-nanjing": "",
-	"ap-beijing": "",
-	"ap-shenzhen": "",
-	"ap-chongqing": "",
-	"ap-chengdu": "",
-	"ap-tianjin": "",
-	"ap-qingyuan": "",
-	"ap-hongkong": "hkccr.",
-	"ap-singapore": "sgccr.",
-	"ap-shenzhen-fsi": "szjrccr.",
-	"ap-shanghai-fsi": "shjrccr.",
-
-
+	"ap-guangzhou":     "ccr",
+	"ap-shanghai":      "ccr",
+	"ap-nanjing":       "ccr",
+	"ap-beijing":       "ccr",
+	"ap-shenzhen":      "ccr",
+	"ap-chongqing":     "ccr",
+	"ap-chengdu":       "ccr",
+	"ap-tianjin":       "ccr",
+	"ap-hongkong":      "hkccr",
+	"ap-shenzhen-fsi":  "szjrccr",
+	"ap-shanghai-fsi":  "shjrccr",
+	"ap-beijing-fsi":   "bjjrccr",
+	"ap-singapore":     "sgccr",
+	"ap-seoul":         "krccr",
+	"ap-tokyo":         "jpccr",
+	"ap-mumbai":        "inccr",
+	"ap-bangkok":       "thccr",
+	"na-toronto":       "caccr",
+	"na-siliconvalley": "uswccr",
+	"na-ashburn":       "useccr",
+	"eu-frankfurt":     "deccr",
+	"eu-moscow":        "ruccr",
 }
 
 // NewCCRAPIClient is new return *CCRAPIClient
 func NewCCRAPIClient() *CCRAPIClient {
 	httpclient := http.Client{}
-	ai := CCRAPIClient{httpClient: &httpclient,
-	}
+	ai := CCRAPIClient{httpClient: &httpclient}
 
 	return &ai
 }
@@ -74,7 +84,6 @@ func (ai *CCRAPIClient) GetAllNamespaceByName(secret map[string]configs.Secret, 
 		log.Errorf("GetCcrSecret error: ", err)
 		return nsList, err
 	}
-
 
 	offset := int64(0)
 	count := 0
@@ -95,17 +104,15 @@ func (ai *CCRAPIClient) GetAllNamespaceByName(secret map[string]configs.Secret, 
 
 		if int64(count) >= namespaceCount {
 			break
-		}else {
-			offset += 1
+		} else {
+			offset += limit
 		}
 
 	}
 
 	return nsList, nil
 
-
 }
-
 
 //GenerateAllCcrRules generate all ccr rules
 func (ai *CCRAPIClient) GenerateAllCcrRules(secret map[string]configs.Secret, ccrRegion string,
@@ -119,7 +126,6 @@ func (ai *CCRAPIClient) GenerateAllCcrRules(secret map[string]configs.Secret, cc
 		log.Errorf("GetCcrSecret error: ", err)
 		return rulesMap, err
 	}
-
 
 	offset := int64(0)
 	count := 0
@@ -136,30 +142,114 @@ func (ai *CCRAPIClient) GenerateAllCcrRules(secret map[string]configs.Secret, cc
 
 		for _, repo := range resp.Response.Data.RepoInfo {
 			ns := strings.Split(*repo.RepoName, "/")[0]
-			if len(failedNsList)==0 || !utils.IsContain(failedNsList, ns) {
-				source := regionPrefix[ccrRegion] + "ccr.ccs.tencentyun.com/" + *repo.RepoName
+			if len(failedNsList) == 0 || !utils.IsContain(failedNsList, ns) {
+				tags, err := ai.getRepoTags(secretID, secretKey, ccrRegion, *repo.RepoName)
+				if err != nil {
+					return nil, err
+				}
+				if len(tags) == 0 {
+					continue
+				}
+				tagStr := strings.Join(tags, ",")
+				source := fmt.Sprintf("%s%s%s:%s", regionPrefix[ccrRegion], ".ccs.tencentyun.com/", *repo.RepoName, tagStr)
 				target := tcrName + ".tencentcloudcr.com/" + *repo.RepoName
-				rulesMap[source] = target
+				rulesMap[target] = source
 			}
 		}
 
 		if int64(count) >= repoCount {
 			break
-		}else {
-			offset += 1
+		} else {
+			offset += limit
 		}
 
 	}
 
+	jsonStr, err := json.Marshal(rulesMap)
+	if err != nil {
+		log.Errorf("Marshal ccr rules map error %v, ", err)
+	}
+	go func() {
+		err = ioutil.WriteFile("./ccr_to_tcr_rules", []byte(jsonStr), 0666)
+		if err != nil {
+			log.Errorf("WriteFile ccr rules error %v, ", err)
+		}
+	}()
+
 	return rulesMap, nil
 
+}
+
+func (ai *CCRAPIClient) getRepoTags(secretID, secretKey, ccrRegion, repoName string) ([]string, error) {
+
+	offset := int64(0)
+	count := int64(0)
+	limit := int64(100)
+
+	var result []string
+
+	for {
+		resp, err := ai.DescribeImagePersonal(secretID, secretKey, ccrRegion, repoName, offset, limit)
+		if err != nil {
+			return nil, err
+		}
+		var tagCount int64
+
+		if resp.Response != nil && resp.Response.Data != nil {
+			tagCount = *resp.Response.Data.TagCount
+		} else {
+			return nil, errors.New("DescribeImagePersonal resp is nil")
+		}
+		if tagCount == 0 {
+			return nil, nil
+		}
+
+		count += int64(len(resp.Response.Data.TagInfo))
+		for _, tagInfo := range resp.Response.Data.TagInfo {
+			result = append(result, *tagInfo.TagName)
+		}
+
+		if count >= tagCount {
+			break
+		} else {
+			offset += limit
+		}
+
+	}
+
+	return result, nil
+}
+
+func (ai *CCRAPIClient) DescribeImagePersonal(secretID, secretKey,
+	region, repoName string, offset, limit int64) (*tcr.DescribeImagePersonalResponse, error) {
+
+	credential := common.NewCredential(
+		secretID,
+		secretKey,
+	)
+	cpf := profile.NewClientProfile()
+	cpf.HttpProfile.Endpoint = "tcr.tencentcloudapi.com"
+	client, _ := tcr.NewClient(credential, region, cpf)
+
+	request := tcr.NewDescribeImagePersonalRequest()
+
+	request.Limit = common.Int64Ptr(limit)
+	request.Offset = common.Int64Ptr(offset)
+	request.RepoName = common.StringPtr(repoName)
+	response, err := client.DescribeImagePersonal(request)
+
+	if err != nil {
+		log.Errorf("An error has returned: %s", err)
+		return nil, err
+	}
+
+	return response, nil
 
 }
 
 // DescribeNamespacePersonal is ccr api DescribeNamespacePersonal
 func (ai *CCRAPIClient) DescribeNamespacePersonal(secretID, secretKey,
 	region string, offset, limit int64) (*tcr.DescribeNamespacePersonalResponse, error) {
-
 
 	credential := common.NewCredential(
 		secretID,
@@ -182,18 +272,13 @@ func (ai *CCRAPIClient) DescribeNamespacePersonal(secretID, secretKey,
 		return nil, err
 	}
 
-
 	return response, nil
 
-
-
 }
-
 
 // DescribeRepositoryOwnerPersonal is ccr api DescribeRepositoryOwnerPersonal
 func (ai *CCRAPIClient) DescribeRepositoryOwnerPersonal(secretID, secretKey,
 	region string, offset, limit int64) (*tcr.DescribeRepositoryOwnerPersonalResponse, error) {
-
 
 	credential := common.NewCredential(
 		secretID,
@@ -215,10 +300,7 @@ func (ai *CCRAPIClient) DescribeRepositoryOwnerPersonal(secretID, secretKey,
 		return nil, err
 	}
 
-
 	return response, nil
-
-
 
 }
 
@@ -235,10 +317,9 @@ func GetCcrSecret(secret map[string]configs.Secret) (string, string, error) {
 		//用tcr secret代替ccr
 		secretID = tcr.SecretID
 		secretKey = tcr.SecretKey
-	}else {
+	} else {
 		return "", "", errors.New("no matched secret provided in secret file")
 	}
 
 	return secretID, secretKey, nil
 }
-

@@ -21,15 +21,16 @@ package imagetransfer
 import (
 	"container/list"
 	"fmt"
+	"strings"
+	"sync"
+
 	"tkestack.io/image-transfer/configs"
 	"tkestack.io/image-transfer/pkg/apis/ccrapis"
 	"tkestack.io/image-transfer/pkg/apis/tcrapis"
-	"tkestack.io/image-transfer/pkg/log"
 	"tkestack.io/image-transfer/pkg/image-transfer/options"
+	"tkestack.io/image-transfer/pkg/log"
 	"tkestack.io/image-transfer/pkg/transfer"
 	"tkestack.io/image-transfer/pkg/utils"
-	"strings"
-	"sync"
 )
 
 //Client is a transfer client
@@ -46,13 +47,11 @@ type Client struct {
 
 	config *configs.Configs
 
-
 	// mutex
 	jobListMutex               sync.Mutex
-	urlPairListMutex            sync.Mutex
+	urlPairListMutex           sync.Mutex
 	failedJobListMutex         sync.Mutex
 	failedJobGenerateListMutex sync.Mutex
-
 }
 
 // URLPair is a pair of source and target url
@@ -68,8 +67,7 @@ func (c *Client) Run() error {
 		return c.CCRToTCRTransfer()
 	}
 
-	return c.NormalTransfer(c.config.ImageList)
-
+	return c.NormalTransfer(c.config.ImageList, false)
 
 }
 
@@ -84,18 +82,14 @@ func (c *Client) CCRToTCRTransfer() error {
 		return err
 	}
 
-
-
 	tcrClient := tcrapis.NewTCRAPIClient()
 	tcrNs, tcrID, err := tcrClient.GetAllNamespaceByName(c.config.Secret,
 		c.config.FlagConf.Config.TCRRegion, c.config.FlagConf.Config.TCRName)
-
 
 	if err != nil {
 		log.Errorf("Get tcr ns returned error: ", err)
 		return err
 	}
-
 
 	//create ccr ns in tcr
 	failedNsList, err := c.CreateTcrNs(tcrClient, ccrNs, tcrNs, c.config.Secret, c.config.FlagConf.Config.TCRRegion, tcrID)
@@ -112,18 +106,15 @@ func (c *Client) CCRToTCRTransfer() error {
 				c.config.Secret, c.config.FlagConf.Config.TCRRegion)
 			if err != nil {
 				continue
-			}else {
+			} else {
 				failedNsList = tmpFailedNsList
 			}
 		}
 	}
 
-
 	if len(failedNsList) != 0 {
 		log.Warnf("some ccr namespace create failed in tcr: ", failedNsList)
 	}
-
-
 
 	//generate transfer rules
 	rulesMap, err := c.GenerateCcrToTcrRules(failedNsList, ccrClient, c.config.Secret, c.config.FlagConf.Config.CCRRegion,
@@ -132,16 +123,13 @@ func (c *Client) CCRToTCRTransfer() error {
 		return err
 	}
 
-
-	return c.NormalTransfer(rulesMap)
-
+	return c.NormalTransfer(rulesMap, true)
 
 }
 
 //GenerateCcrToTcrRules generate rules of ccr transfer to tcr
 func (c *Client) GenerateCcrToTcrRules(failedNsList []string, ccrClient *ccrapis.CCRAPIClient,
-	secret map[string]configs.Secret, ccrRegion string, tcrRegion string, tcrName string) (map[string]string, error){
-
+	secret map[string]configs.Secret, ccrRegion string, tcrRegion string, tcrName string) (map[string]string, error) {
 
 	rulesMap, err := ccrClient.GenerateAllCcrRules(secret, ccrRegion, failedNsList, tcrRegion, tcrName)
 
@@ -152,11 +140,10 @@ func (c *Client) GenerateCcrToTcrRules(failedNsList []string, ccrClient *ccrapis
 
 	return rulesMap, nil
 
-
 }
 
 //RetryCreateTcrNs retry to create tcr namespaces
-func (c *Client) RetryCreateTcrNs(tcrClient *tcrapis.TCRAPIClient, retryList [] string,
+func (c *Client) RetryCreateTcrNs(tcrClient *tcrapis.TCRAPIClient, retryList []string,
 	secret map[string]configs.Secret, region string) ([]string, error) {
 	var failedList []string
 
@@ -182,10 +169,6 @@ func (c *Client) RetryCreateTcrNs(tcrClient *tcrapis.TCRAPIClient, retryList [] 
 
 	return failedList, nil
 
-
-
-
-
 }
 
 //CreateTcrNs create tcr namespaces
@@ -193,7 +176,6 @@ func (c *Client) CreateTcrNs(tcrClient *tcrapis.TCRAPIClient, ccrNs, tcrNs []str
 	secret map[string]configs.Secret, region string, tcrID string) ([]string, error) {
 
 	var failedList []string
-
 
 	secretID, secretKey, err := tcrapis.GetTcrSecret(secret)
 
@@ -214,24 +196,27 @@ func (c *Client) CreateTcrNs(tcrClient *tcrapis.TCRAPIClient, ccrNs, tcrNs []str
 
 	return failedList, nil
 
-
 }
 
 //NormalTransfer is the normal mode of transfer
-func (c *Client) NormalTransfer(imageList map[string]string) error {
-
-
+func (c *Client) NormalTransfer(imageList map[string]string, isCCRToTCR bool) error {
 
 	for source, target := range imageList {
-		c.urlPairList.PushBack(&URLPair{
-			source:      source,
-			target: 	 target,
-		})
-
+		// ccr to tcr will use target for map key
+		if isCCRToTCR {
+			c.urlPairList.PushBack(&URLPair{
+				source: target,
+				target: source,
+			})
+		} else {
+			c.urlPairList.PushBack(&URLPair{
+				source: source,
+				target: target,
+			})
+		}
 	}
 
 	jobListChan := make(chan *transfer.Job, c.config.FlagConf.Config.RoutineNums)
-
 
 	fmt.Println("Start to handle transfer jobs, please wait ...")
 
@@ -255,7 +240,6 @@ func (c *Client) NormalTransfer(imageList map[string]string) error {
 		c.Retry()
 	}
 
-
 	if c.failedJobList.Len() != 0 {
 		log.Infof("################# %v failed transfer jobs: #################", c.failedJobList.Len())
 		for e := c.failedJobList.Front(); e != nil; e = e.Next() {
@@ -273,15 +257,12 @@ func (c *Client) NormalTransfer(imageList map[string]string) error {
 		}
 	}
 
-
 	log.Infof("################# Finished, %v transfer jobs failed, %v jobs generate failed #################",
 		c.failedJobList.Len(), c.failedJobGenerateList.Len())
-
 
 	return nil
 
 }
-
 
 //Retry is retry the failed job
 func (c *Client) Retry() {
@@ -296,8 +277,6 @@ func (c *Client) Retry() {
 		c.jobsHandler(retryJobListChan)
 	}()
 
-
-
 	if c.failedJobList.Len() != 0 {
 		for {
 			failedJob := c.failedJobList.Front()
@@ -310,21 +289,16 @@ func (c *Client) Retry() {
 
 	}
 
-
 	if c.failedJobGenerateList.Len() != 0 {
 		c.urlPairList.PushBackList(c.failedJobGenerateList)
 		c.failedJobGenerateList.Init()
 		c.rulesHandler(retryJobListChan)
-	}else {
+	} else {
 		close(retryJobListChan)
 	}
 
-
-
 	wg1.Wait()
 }
-
-
 
 // NewTransferClient creates a transfer client
 func NewTransferClient(opts *options.ClientOptions) (*Client, error) {
@@ -336,13 +310,13 @@ func NewTransferClient(opts *options.ClientOptions) (*Client, error) {
 	}
 
 	return &Client{
-		jobList:                   list.New(),
+		jobList:                    list.New(),
 		urlPairList:                list.New(),
-		failedJobList:             list.New(),
-		failedJobGenerateList:     list.New(),
+		failedJobList:              list.New(),
+		failedJobGenerateList:      list.New(),
 		config:                     clientConfig,
 		jobListMutex:               sync.Mutex{},
-		urlPairListMutex:            sync.Mutex{},
+		urlPairListMutex:           sync.Mutex{},
 		failedJobListMutex:         sync.Mutex{},
 		failedJobGenerateListMutex: sync.Mutex{},
 	}, nil
@@ -352,7 +326,6 @@ func (c *Client) rulesHandler(jobListChan chan *transfer.Job) {
 	defer func() {
 		close(jobListChan)
 	}()
-
 
 	routineNum := c.config.FlagConf.Config.RoutineNums
 	wg := sync.WaitGroup{}
@@ -390,7 +363,7 @@ func (c *Client) jobsHandler(jobListChan chan *transfer.Job) {
 		go func() {
 			defer wg.Done()
 			for {
-				job, ok := <- jobListChan
+				job, ok := <-jobListChan
 				if !ok {
 					break
 				}
@@ -503,7 +476,7 @@ func (c *Client) GenerateTransferJob(jobListChan chan *transfer.Job, source stri
 		var urlPairs = []*URLPair{}
 		for _, t := range moreTag {
 			urlPairs = append(urlPairs, &URLPair{
-				source:      sourceURL.GetURLWithoutTag() + ":" + t,
+				source: sourceURL.GetURLWithoutTag() + ":" + t,
 				target: targetURL.GetURLWithoutTag() + ":" + t,
 			})
 		}
@@ -548,7 +521,7 @@ func (c *Client) GenerateTransferJob(jobListChan chan *transfer.Job, source stri
 		var urlPairs = []*URLPair{}
 		for _, tag := range tags {
 			urlPairs = append(urlPairs, &URLPair{
-				source:      sourceURL.GetURL() + ":" + tag,
+				source: sourceURL.GetURL() + ":" + tag,
 				target: targetURL.GetURL() + ":" + tag,
 			})
 		}
@@ -582,7 +555,6 @@ func (c *Client) GenerateTransferJob(jobListChan chan *transfer.Job, source stri
 	log.Infof("Generate a job for %s to %s", sourceURL.GetURL(), targetURL.GetURL())
 	return nil, nil
 }
-
 
 // GetFailedJob gets a failed job from failedJobList
 func (c *Client) GetFailedJob() (*transfer.Job, bool) {

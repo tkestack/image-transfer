@@ -20,12 +20,13 @@ package tcrapis
 
 import (
 	"errors"
-	"tkestack.io/image-transfer/configs"
-	"tkestack.io/image-transfer/pkg/log"
+	"net/http"
+
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common"
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/profile"
 	tcr "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/tcr/v20190924"
-	"net/http"
+	"tkestack.io/image-transfer/configs"
+	"tkestack.io/image-transfer/pkg/log"
 )
 
 // TCRAPIClient wrap http client
@@ -37,14 +38,13 @@ type TCRAPIClient struct {
 // NewTCRAPIClient is new return *CCRAPIClient
 func NewTCRAPIClient() *TCRAPIClient {
 	httpclient := http.Client{}
-	ai := TCRAPIClient{httpClient: &httpclient,
-	}
+	ai := TCRAPIClient{httpClient: &httpclient}
 
 	return &ai
 }
 
 // GetAllNamespaceByName get all ns from tcr name
-func (ai *TCRAPIClient) GetAllNamespaceByName (secret map[string]configs.Secret,
+func (ai *TCRAPIClient) GetAllNamespaceByName(secret map[string]configs.Secret,
 	region string, tcrName string) ([]string, string, error) {
 
 	var nsList []string
@@ -56,7 +56,6 @@ func (ai *TCRAPIClient) GetAllNamespaceByName (secret map[string]configs.Secret,
 		return nsList, tcrID, err
 	}
 
-
 	//get tcrId by tcr name
 	filterValues := []string{tcrName}
 	resp, err := ai.DescribeInstances(secretID, secretKey, region, 0, 100, "RegistryName", filterValues)
@@ -67,7 +66,8 @@ func (ai *TCRAPIClient) GetAllNamespaceByName (secret map[string]configs.Secret,
 
 	tcrID = *resp.Response.Registries[0].RegistryId
 
-	offset := int64(0)
+	// tcr offset means page number, currently :(
+	offset := int64(1)
 	count := 0
 	limit := int64(100)
 
@@ -85,7 +85,7 @@ func (ai *TCRAPIClient) GetAllNamespaceByName (secret map[string]configs.Secret,
 
 		if int64(count) >= namespaceCount {
 			break
-		}else {
+		} else {
 			offset += 1
 		}
 
@@ -93,11 +93,7 @@ func (ai *TCRAPIClient) GetAllNamespaceByName (secret map[string]configs.Secret,
 
 	return nsList, tcrID, nil
 
-
-
 }
-
-
 
 // DescribeInstances is tcr api DescribeInstances
 func (ai *TCRAPIClient) DescribeInstances(secretID, secretKey, region string, offset,
@@ -113,10 +109,10 @@ func (ai *TCRAPIClient) DescribeInstances(secretID, secretKey, region string, of
 
 	request := tcr.NewDescribeInstancesRequest()
 
-	request.Filters = []*tcr.Filter {
-		&tcr.Filter {
+	request.Filters = []*tcr.Filter{
+		{
 			Values: common.StringPtrs(filterValues),
-			Name: common.StringPtr(filterName),
+			Name:   common.StringPtr(filterName),
 		},
 	}
 
@@ -128,7 +124,6 @@ func (ai *TCRAPIClient) DescribeInstances(secretID, secretKey, region string, of
 	}
 
 	return response, nil
-
 
 }
 
@@ -159,7 +154,6 @@ func (ai *TCRAPIClient) DescribeNamespaces(secretID, secretKey, region string, o
 
 	return response, nil
 
-
 }
 
 // CreateNamespace is tcr api CreateNamespace
@@ -189,7 +183,6 @@ func (ai *TCRAPIClient) CreateNamespace(secretID, secretKey, region string,
 
 	return response, nil
 
-
 }
 
 // GetTcrSecret get tcr secret from config
@@ -205,7 +198,7 @@ func GetTcrSecret(secret map[string]configs.Secret) (string, string, error) {
 		//用ccr secret代替tcr
 		secretID = ccr.SecretID
 		secretKey = ccr.SecretKey
-	}else {
+	} else {
 		return "", "", errors.New("no matched secret provided in secret file")
 	}
 
