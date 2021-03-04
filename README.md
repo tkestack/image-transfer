@@ -65,32 +65,32 @@ make
 ```
 ccr:
     secretId: xxx
-secretKey: xxx
+    secretKey: xxx
 tcr:
     secretId: xxx
-secretKey: xxx
+    secretKey: xxx
 ```
 
 #### 镜像鉴权配置文件
 ```
 grant-test.tencentcloudcr.com:
-username: xxx
-password: xxx
+  username: xxx
+  password: xxx
 grant-test2.tencentcloudcr.com:
-username: xxx
-password: xxx
+  username: xxx
+  password: xxx
 registry.cn-hangzhou.aliyuncs.com:
-username: xxx
-password: xxx
+  username: xxx
+  password: xxx
 ccr.ccs.tencentyun.com:
-username: xxx
-password: xxx
+  username: xxx
+  password: xxx
 registry.hub.docker.com:
-username: xxx
-password: xxx
+  username: xxx
+  password: xxx
 test-jingwei.tencentcloudcr.com:
-username: xxx
-password: xxx
+  username: xxx
+  password: xxx
 ```
 
 
