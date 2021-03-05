@@ -21,11 +21,11 @@ package transfer
 import (
 	"context"
 	"fmt"
-	"tkestack.io/image-transfer/pkg/utils"
-	//"tkestack.io/image-transfer/pkg/container-image/docker"
-	"tkestack.io/image-transfer/pkg/container-image/docker"
-	"tkestack.io/image-transfer/pkg/container-image/types"
 	"io"
+
+	"github.com/containers/image/v5/docker"
+	"github.com/containers/image/v5/types"
+	"tkestack.io/image-transfer/pkg/utils"
 )
 
 // ImageSource is a reference to a remote image need to be pulled.
@@ -33,11 +33,10 @@ type ImageSource struct {
 	registry   string
 	repository string
 	tag        string
-	sourceRef types.ImageReference
-	source    types.ImageSource
-	ctx       context.Context
-	sysctx    *types.SystemContext
-
+	sourceRef  types.ImageReference
+	source     types.ImageSource
+	ctx        context.Context
+	sysctx     *types.SystemContext
 }
 
 // NewImageSource generates a PullJob by repository, the repository string must include "tag",
@@ -111,14 +110,12 @@ func (i *ImageSource) GetBlobInfos(manifestByte []byte, manifestType string) ([]
 		return nil, fmt.Errorf("can not get blobs without specfied a tag")
 	}
 
-
 	manifestInfoSlice, err := ManifestHandler(manifestByte, manifestType, i)
 	if err != nil {
 		return nil, err
 	}
 
 	// get a manifest
-
 
 	srcBlobs := []types.BlobInfo{}
 
@@ -133,8 +130,6 @@ func (i *ImageSource) GetBlobInfos(manifestByte []byte, manifestType string) ([]
 			srcBlobs = append(srcBlobs, configBlob)
 		}
 	}
-
-
 
 	return srcBlobs, nil
 }

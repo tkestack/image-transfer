@@ -19,9 +19,9 @@
 package transfer
 
 import (
+	"github.com/containers/image/v5/manifest"
+	"github.com/containers/image/v5/pkg/blobinfocache/none"
 	"tkestack.io/image-transfer/pkg/log"
-	"tkestack.io/image-transfer/pkg/container-image/manifest"
-	"tkestack.io/image-transfer/pkg/container-image/pkg/blobinfocache/none"
 )
 
 var (
@@ -31,17 +31,16 @@ var (
 
 // Job act as a sync action, it will pull a images from source to target
 type Job struct {
-	Source      *ImageSource
-	Target 		*ImageTarget
-
+	Source *ImageSource
+	Target *ImageTarget
 }
 
 // NewJob creates a transfer job
 func NewJob(source *ImageSource, target *ImageTarget) *Job {
 
 	return &Job{
-		Source:      source,
-		Target: 	 target,
+		Source: source,
+		Target: target,
 	}
 }
 
@@ -82,7 +81,6 @@ func (j *Job) Run() error {
 				return err
 			}
 
-
 			log.Infof("Get a blob %s(%v) from %s/%s:%s success", blobinfo.Digest, size,
 				j.Source.GetRegistry(), j.Source.GetRepository(), j.Source.GetTag())
 
@@ -95,8 +93,6 @@ func (j *Job) Run() error {
 				return err
 			}
 
-
-
 			log.Infof("Put blob %s(%v) to %s/%s:%s success", blobinfo.Digest, blobinfo.Size,
 				j.Target.GetRegistry(), j.Target.GetRepository(), j.Target.GetTag())
 		} else {
@@ -105,7 +101,6 @@ func (j *Job) Run() error {
 				blobinfo.Size, j.Target.GetRegistry()+"/"+j.Target.GetRepository())
 		}
 	}
-
 
 	//Push manifest list
 	if manifestType == manifest.DockerV2ListMediaType {

@@ -19,10 +19,9 @@
 package transfer
 
 import (
-
 	"fmt"
-	"tkestack.io/image-transfer/pkg/container-image/manifest"
 
+	"github.com/containers/image/v5/manifest"
 )
 
 // ManifestSchemaV2List describes a schema V2 manifest list
