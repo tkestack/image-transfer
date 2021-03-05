@@ -21,10 +21,11 @@ package transfer
 import (
 	"context"
 	"fmt"
-	"tkestack.io/image-transfer/pkg/utils"
-	"tkestack.io/image-transfer/pkg/container-image/docker"
-	"tkestack.io/image-transfer/pkg/container-image/types"
 	"io"
+
+	"github.com/containers/image/v5/docker"
+	"github.com/containers/image/v5/types"
+	"tkestack.io/image-transfer/pkg/utils"
 )
 
 // ImageTarget is a reference of a remote image we will push to
@@ -32,10 +33,9 @@ type ImageTarget struct {
 	registry   string
 	repository string
 	tag        string
-	targetRef types.ImageReference
-	target    types.ImageDestination
-	ctx            context.Context
-
+	targetRef  types.ImageReference
+	target     types.ImageDestination
+	ctx        context.Context
 }
 
 // NewImageTarget generates a ImageTarget by repository, the repository string must include "tag".
@@ -83,11 +83,11 @@ func NewImageTarget(registry, repository, tag, username, password string, insecu
 	return &ImageTarget{
 		targetRef: destRef,
 		target:    rawtarget,
-		ctx:            ctx,
+		ctx:       ctx,
 
-		registry:       registry,
-		repository:     repository,
-		tag:            tag,
+		registry:   registry,
+		repository: repository,
+		tag:        tag,
 	}, nil
 }
 
@@ -102,7 +102,6 @@ func (i *ImageTarget) PutABlob(blob io.ReadCloser, blobInfo types.BlobInfo) erro
 		Digest: blobInfo.Digest,
 		Size:   blobInfo.Size,
 	}, NoCache, true)
-
 
 	// io.ReadCloser need to be close
 	defer blob.Close()
