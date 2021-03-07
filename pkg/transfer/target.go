@@ -149,5 +149,9 @@ func (i *ImageTarget) GetImageDigest() (digest.Digest, error) {
 
 // GetTargetRepoTags gets all the tags of a repository which ImageTarget belongs to
 func (i *ImageTarget) GetTargetRepoTags() ([]string, error) {
-	return docker.GetRepositoryTags(i.ctx, i.sysctx, i.targetRef)
+	tags, err := docker.GetRepositoryTags(i.ctx, i.sysctx, i.targetRef)
+	if err != nil && utils.IsTagsNotFound(err) {
+		return nil, nil
+	}
+	return tags, err
 }

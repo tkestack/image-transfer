@@ -19,11 +19,9 @@
 package ccrapis
 
 import (
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/pkg/errors"
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common"
@@ -40,7 +38,8 @@ type CCRAPIClient struct {
 	url        string
 }
 
-var regionPrefix = map[string]string{
+// RegionPrefix is map tencent cloud region to ccr domain prefix
+var RegionPrefix = map[string]string{
 	"ap-guangzhou":     "ccr",
 	"ap-shanghai":      "ccr",
 	"ap-nanjing":       "ccr",
@@ -115,73 +114,59 @@ func (ai *CCRAPIClient) GetAllNamespaceByName(secret map[string]configs.Secret, 
 
 }
 
-//GenerateAllCcrRules generate all ccr rules
-func (ai *CCRAPIClient) GenerateAllCcrRules(secret map[string]configs.Secret, ccrRegion string,
-	failedNsList []string, tcrRegion string, tcrName string) (map[string]string, error) {
-
-	rulesMap := make(map[string]string)
-
+//GetAllCcrRepo get all ccr repo send to repoChan
+func (ai *CCRAPIClient) GetAllCcrRepo(secret map[string]configs.Secret, ccrRegion string,
+	failedNsList []string, tcrRegion string, tcrName string, repoChan chan string, toltalCount int64) error {
 	secretID, secretKey, err := GetCcrSecret(secret)
-
 	if err != nil {
-		log.Errorf("GetCcrSecret error: ", err)
-		return rulesMap, err
+		log.Errorf("GetCcrSecret error: %s", err)
+		return err
 	}
 
 	offset := int64(0)
-	count := 0
 	limit := int64(100)
-
-	for {
-		resp, err := ai.DescribeRepositoryOwnerPersonal(secretID, secretKey, ccrRegion, offset, limit)
-		if err != nil {
-			log.Errorf("get ccr repo error, ", err)
-			return rulesMap, err
-		}
-		repoCount := *resp.Response.Data.TotalCount
-		count += len(resp.Response.Data.RepoInfo)
-
-		for _, repo := range resp.Response.Data.RepoInfo {
-			ns := strings.Split(*repo.RepoName, "/")[0]
-			if len(failedNsList) == 0 || !utils.IsContain(failedNsList, ns) {
-				tags, err := ai.getRepoTags(secretID, secretKey, ccrRegion, *repo.RepoName)
-				if err != nil {
-					return nil, err
-				}
-				if len(tags) == 0 {
-					continue
-				}
-				tagStr := strings.Join(tags, ",")
-				source := fmt.Sprintf("%s%s%s:%s", regionPrefix[ccrRegion], ".ccs.tencentyun.com/", *repo.RepoName, tagStr)
-				target := tcrName + ".tencentcloudcr.com/" + *repo.RepoName
-				rulesMap[target] = source
-			}
-		}
-
-		if int64(count) >= repoCount {
-			break
-		} else {
-			offset += limit
-		}
-
+	maxGorutineNum := 5
+	page := toltalCount/limit
+	if toltalCount%limit >0 {
+		page++
 	}
-
-	jsonStr, err := json.Marshal(rulesMap)
-	if err != nil {
-		log.Errorf("Marshal ccr rules map error %v, ", err)
-	}
+	wg := sync.WaitGroup{}
+	defer close(repoChan)
+	leakCh := make(chan struct{}, maxGorutineNum)
+	wg.Add(1)
 	go func() {
-		err = ioutil.WriteFile("./ccr_to_tcr_rules", []byte(jsonStr), 0666)
-		if err != nil {
-			log.Errorf("WriteFile ccr rules error %v, ", err)
+		defer wg.Done()
+		for i := 0; i < maxGorutineNum; i++ {
+			leakCh <- struct{}{}
 		}
 	}()
 
-	return rulesMap, nil
-
+	for j :=int64(0);j< page;j++ {
+		wg.Add(1)
+		<-leakCh
+		go func(n int64) {
+			defer wg.Done()
+			offset = n*limit
+			resp, err := ai.DescribeRepositoryOwnerPersonal(secretID, secretKey, ccrRegion, offset, limit)
+			if err != nil {
+				log.Errorf("get ccr repo offset %d limit %d error, %s", offset, limit, err)
+				return
+			}
+			for _, repo := range resp.Response.Data.RepoInfo {
+				ns := strings.Split(*repo.RepoName, "/")[0]
+				if len(failedNsList) == 0 || !utils.IsContain(failedNsList, ns) {
+					repoChan <- *repo.RepoName
+				}
+			}
+			leakCh <- struct{}{}
+		}(j)	
+	}
+	wg.Wait()
+	return nil
 }
 
-func (ai *CCRAPIClient) getRepoTags(secretID, secretKey, ccrRegion, repoName string) ([]string, error) {
+// GetRepoTags get ccr repo tags
+func (ai *CCRAPIClient) GetRepoTags(secretID, secretKey, ccrRegion, repoName string) ([]string, error) {
 
 	offset := int64(0)
 	count := int64(0)
