@@ -19,6 +19,7 @@
 package transfer
 
 import (
+	"github.com/pkg/errors"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/pkg/blobinfocache/none"
 	"tkestack.io/image-transfer/pkg/log"
@@ -93,6 +94,9 @@ func (j *Job) Run() error {
 			if err := j.Target.PutABlob(blob, blobinfo); err != nil {
 				log.Errorf("Put blob %s(%v) to %s/%s:%s failed: %v", blobinfo.Digest, blobinfo.Size,
 					j.Target.GetRegistry(), j.Target.GetRepository(), j.Target.GetTag(), err)
+				if closeErr := blob.Close(); closeErr != nil {
+					return errors.Wrapf(err, " (close error: %v)", closeErr)
+				}
 				return err
 			}
 
