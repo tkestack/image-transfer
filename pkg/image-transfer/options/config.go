@@ -68,7 +68,7 @@ func (o *ConfigOptions) AddFlags(fs *pflag.FlagSet) {
 		"default destinate namespace when destinate namespace is not" +
 		" given in the config file, can also be set with DEFAULT_NAMESPACE environment value")
 	fs.IntVar(&o.RoutineNums, "routines", 5,
-		"number of goroutines, default value is 5, max routines is 200")
+		"number of goroutines, default value is 5, max routines is 50")
 	fs.IntVar(&o.RetryNums, "retry", 2,
 		"number of retries, default value is 2")
 	fs.IntVar(&o.QPS, "qps", 100,

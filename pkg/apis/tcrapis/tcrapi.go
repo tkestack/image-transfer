@@ -77,7 +77,7 @@ func (ai *TCRAPIClient) GetAllNamespaceByName(secret map[string]configs.Secret,
 			log.Errorf("DescribeNamespaces error, ", err)
 			return nsList, tcrID, err
 		}
-		log.Infof("tcr namespace offset %d limit %d resp is %s", offset, limit, resp.ToJsonString())
+		log.Debugf("tcr namespace offset %d limit %d resp is %s", offset, limit, resp.ToJsonString())
 		namespaceCount := *resp.Response.TotalCount
 		count += len(resp.Response.NamespaceList)
 		for _, ns := range resp.Response.NamespaceList {

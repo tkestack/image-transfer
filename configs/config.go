@@ -41,7 +41,7 @@ var (
 
 const (
 	maxRatelimit int = 30000
-	maxRoutineNums int = 200
+	maxRoutineNums int = 50
 )
 
 // Configs struct save of all config
