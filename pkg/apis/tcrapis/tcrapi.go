@@ -266,7 +266,7 @@ func (ai *TCRAPIClient) GetRepoTags(secretID, secretKey, region, tcrName, nsName
 			tags = append(tags, *tagInfo.ImageVersion)
 		}
 
-		//log.Infof("tcr get tag repo %s/%s offset %d, limit %d, total count %d, current count %d, resp %v", nsName, repositoryName, offset, limit, tagsCount, count, resp.ToJsonString())
+		log.Debugf("tcr get tag repo %s/%s offset %d, limit %d, total count %d, current count %d, resp %v", nsName, repositoryName, offset, limit, tagsCount, count, resp.ToJsonString())
 		if int64(count) >= tagsCount {
 			break
 		} else {

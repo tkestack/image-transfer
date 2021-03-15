@@ -19,11 +19,11 @@
 package transfer
 
 import (
-	"github.com/pkg/errors"
 	"github.com/containers/image/v5/manifest"
-	"github.com/containers/image/v5/pkg/blobinfocache/none"
-	"tkestack.io/image-transfer/pkg/log"
 	"github.com/containers/image/v5/pkg/blobinfocache/memory"
+	"github.com/containers/image/v5/pkg/blobinfocache/none"
+	"github.com/pkg/errors"
+	"tkestack.io/image-transfer/pkg/log"
 )
 
 var (
