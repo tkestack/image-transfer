@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/opencontainers/go-digest"
+
 	"github.com/containers/image/v5/docker"
 	"github.com/containers/image/v5/types"
 	"tkestack.io/image-transfer/pkg/utils"
@@ -36,6 +38,7 @@ type ImageTarget struct {
 	targetRef  types.ImageReference
 	target     types.ImageDestination
 	ctx        context.Context
+	sysctx    *types.SystemContext
 }
 
 // NewImageTarget generates a ImageTarget by repository, the repository string must include "tag".
@@ -84,7 +87,7 @@ func NewImageTarget(registry, repository, tag, username, password string, insecu
 		targetRef: destRef,
 		target:    rawtarget,
 		ctx:       ctx,
-
+		sysctx: sysctx,
 		registry:   registry,
 		repository: repository,
 		tag:        tag,
@@ -101,7 +104,7 @@ func (i *ImageTarget) PutABlob(blob io.ReadCloser, blobInfo types.BlobInfo) erro
 	_, err := i.target.PutBlob(i.ctx, blob, types.BlobInfo{
 		Digest: blobInfo.Digest,
 		Size:   blobInfo.Size,
-	}, NoCache, true)
+	}, Memory, true)
 
 	// io.ReadCloser need to be close
 	defer blob.Close()
@@ -114,7 +117,7 @@ func (i *ImageTarget) CheckBlobExist(blobInfo types.BlobInfo) (bool, error) {
 	exist, _, err := i.target.TryReusingBlob(i.ctx, types.BlobInfo{
 		Digest: blobInfo.Digest,
 		Size:   blobInfo.Size,
-	}, NoCache, false)
+	}, Memory, false)
 
 	return exist, err
 }
@@ -137,4 +140,18 @@ func (i *ImageTarget) GetRepository() string {
 // GetTag return the tag of a ImageTarget
 func (i *ImageTarget) GetTag() string {
 	return i.tag
+}
+
+// GetImageDigest checks if a tag exist for target, return target tag of digest
+func (i *ImageTarget) GetImageDigest() (digest.Digest, error) {
+	return docker.GetDigest(i.ctx, i.sysctx, i.targetRef)
+}
+
+// GetTargetRepoTags gets all the tags of a repository which ImageTarget belongs to
+func (i *ImageTarget) GetTargetRepoTags() ([]string, error) {
+	tags, err := docker.GetRepositoryTags(i.ctx, i.sysctx, i.targetRef)
+	if err != nil && utils.IsTagsNotFound(err) {
+		return nil, nil
+	}
+	return tags, err
 }

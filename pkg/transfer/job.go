@@ -20,13 +20,17 @@ package transfer
 
 import (
 	"github.com/containers/image/v5/manifest"
+	"github.com/containers/image/v5/pkg/blobinfocache/memory"
 	"github.com/containers/image/v5/pkg/blobinfocache/none"
+	"github.com/pkg/errors"
 	"tkestack.io/image-transfer/pkg/log"
 )
 
 var (
 	// NoCache used to disable a blobinfocache
 	NoCache = none.NoCache
+	// Memory cache to enable a blobinfocache
+	Memory = memory.New()
 )
 
 // Job act as a sync action, it will pull a images from source to target
@@ -90,6 +94,9 @@ func (j *Job) Run() error {
 			if err := j.Target.PutABlob(blob, blobinfo); err != nil {
 				log.Errorf("Put blob %s(%v) to %s/%s:%s failed: %v", blobinfo.Digest, blobinfo.Size,
 					j.Target.GetRegistry(), j.Target.GetRepository(), j.Target.GetTag(), err)
+				if closeErr := blob.Close(); closeErr != nil {
+					return errors.Wrapf(err, " (close error: %v)", closeErr)
+				}
 				return err
 			}
 

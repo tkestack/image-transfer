@@ -162,3 +162,11 @@ func IsContain(items []string, item string) bool {
 	}
 	return false
 }
+
+// IsTagsNotFound judge is the error get tags from repo http not found
+func IsTagsNotFound(err error) bool {
+	if err.Error() == "Error fetching tags list: invalid status code from registry 404 (Not Found)" {
+		return true
+	}
+	return false
+}
