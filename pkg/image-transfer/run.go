@@ -321,15 +321,22 @@ func (c *Client) Retry() {
 	}()
 
 	if c.failedJobList.Len() != 0 {
+		failedJobListChan := make(chan *transfer.Job, c.failedJobList.Len())
 		for {
 			failedJob := c.failedJobList.Front()
 			if failedJob == nil {
 				break
 			}
-			retryJobListChan <- failedJob.Value.(*transfer.Job)
+			log.Infof("put failed job to failedJobListChan %s/%s:%s %s/%s:%s", failedJob.Value.(*transfer.Job).Source.GetRegistry(), failedJob.Value.(*transfer.Job).Source.GetRepository(), failedJob.Value.(*transfer.Job).Source.GetTag(), failedJob.Value.(*transfer.Job).Target.GetRegistry(), failedJob.Value.(*transfer.Job).Target.GetRepository(), failedJob.Value.(*transfer.Job).Target.GetTag())
+			failedJobListChan <- failedJob.Value.(*transfer.Job)
 			c.failedJobList.Remove(failedJob)
 		}
-
+		close(failedJobListChan)
+		wg1.Add(1)
+		go func() {
+			defer wg1.Done()
+			c.jobsHandler(failedJobListChan)
+		}()
 	}
 
 	if c.failedGenNormalURLPairList.Len() != 0 || c.failedJobGenerateList.Len() != 0 {
