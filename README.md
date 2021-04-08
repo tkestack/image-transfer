@@ -30,7 +30,7 @@ tcr镜像迁移工具具有两种运行模式：
 ### 手动编译
 ```
 git clone https://github.com/tkestack/image-transfer.git
-cd ./image-syncer
+cd ./image-transfer
 
 # 编译
 make
