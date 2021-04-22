@@ -906,14 +906,14 @@ func (c *Client) GenTagURLPair(source string, target string, wg *sync.WaitGroup)
 		return err
 	}
 	targetDigest, err := imageTarget.GetImageDigest()
-	if err != nil {
+	if err == nil {
+		if sourceDigest == targetDigest {
+			log.Infof("Skip push image, target image %s/%s:%s already exist and has same digest %s", imageTarget.GetRegistry(), imageTarget.GetRepository(), imageTarget.GetTag(), sourceDigest)
+			return nil
+		}
+	} else if !utils.IsDigestNotFound(err) {
 		log.Errorf("Failed to get target image digest from %s/%s:%s error: %v", imageTarget.GetRegistry(), imageTarget.GetRepository(), destTag, err)
 		return err
-	}
-
-	if sourceDigest == targetDigest {
-		log.Infof("Skip push image, target image %s/%s:%s already exist and has same digest %s", imageTarget.GetRegistry(), imageTarget.GetRepository(), imageTarget.GetTag(), sourceDigest)
-		return nil
 	}
 
 	c.PutNormalURLPair(&URLPair{

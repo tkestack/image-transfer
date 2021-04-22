@@ -170,3 +170,11 @@ func IsTagsNotFound(err error) bool {
 	}
 	return false
 }
+
+// IsDigestNotFound judge is the digest exist
+func IsDigestNotFound(err error) bool {
+	if strings.Contains(err.Error(), "StatusCode: 404") {
+		return true
+	}
+	return false
+}

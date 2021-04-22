@@ -3,7 +3,7 @@ module tkestack.io/image-transfer
 go 1.14
 
 require (
-	github.com/containers/image/v5 v5.10.5
+	github.com/containers/image/v5 v5.11.1
 	github.com/containers/libtrust v0.0.0-20200511145503-9c3a6c22cd9a // indirect
 	github.com/docker/docker v1.13.1 // indirect
 	github.com/emicklei/go-restful v2.15.0+incompatible
@@ -18,5 +18,5 @@ require (
 	go.uber.org/zap v1.10.0
 	gopkg.in/ini.v1 v1.51.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
-	gopkg.in/yaml.v2 v2.3.0
+	gopkg.in/yaml.v2 v2.4.0
 )
