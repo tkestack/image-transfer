@@ -126,8 +126,8 @@ func (ai *CCRAPIClient) GetAllCcrRepo(secret map[string]configs.Secret, ccrRegio
 	offset := int64(0)
 	limit := int64(100)
 	maxGorutineNum := 5
-	page := toltalCount/limit
-	if toltalCount%limit >0 {
+	page := toltalCount / limit
+	if toltalCount%limit > 0 {
 		page++
 	}
 	wg := sync.WaitGroup{}
@@ -141,12 +141,12 @@ func (ai *CCRAPIClient) GetAllCcrRepo(secret map[string]configs.Secret, ccrRegio
 		}
 	}()
 
-	for j :=int64(0);j< page;j++ {
+	for j := int64(0); j < page; j++ {
 		wg.Add(1)
 		<-leakCh
 		go func(n int64) {
 			defer wg.Done()
-			offset = n*limit
+			offset = n * limit
 			resp, err := ai.DescribeRepositoryOwnerPersonal(secretID, secretKey, ccrRegion, offset, limit)
 			if err != nil {
 				log.Errorf("get ccr repo offset %d limit %d error, %s", offset, limit, err)
@@ -159,14 +159,18 @@ func (ai *CCRAPIClient) GetAllCcrRepo(secret map[string]configs.Secret, ccrRegio
 				}
 			}
 			leakCh <- struct{}{}
-		}(j)	
+		}(j)
 	}
 	wg.Wait()
 	return nil
 }
 
 // GetRepoTags get ccr repo tags
-func (ai *CCRAPIClient) GetRepoTags(secretID, secretKey, ccrRegion, repoName string) ([]string, error) {
+func (ai *CCRAPIClient) GetRepoTags(secretID, secretKey, ccrRegion, repoName string, ccrTagNum int64) ([]string, error) {
+
+	if ccrTagNum < 0 {
+		return nil, errors.Errorf("Invalid value ccrTagNum %v", ccrTagNum)
+	}
 
 	offset := int64(0)
 	count := int64(0)
@@ -189,10 +193,17 @@ func (ai *CCRAPIClient) GetRepoTags(secretID, secretKey, ccrRegion, repoName str
 		if tagCount == 0 {
 			return nil, nil
 		}
+		if ccrTagNum >= tagCount {
+			ccrTagNum = tagCount
+		}
 
 		count += int64(len(resp.Response.Data.TagInfo))
 		for _, tagInfo := range resp.Response.Data.TagInfo {
 			result = append(result, *tagInfo.TagName)
+		}
+
+		if count >= ccrTagNum {
+			break
 		}
 
 		if count >= tagCount {
@@ -202,8 +213,12 @@ func (ai *CCRAPIClient) GetRepoTags(secretID, secretKey, ccrRegion, repoName str
 		}
 
 	}
+	// in case index out of range
+	if ccrTagNum > int64(len(result)) {
+		ccrTagNum = int64(len(result))
+	}
 
-	return result, nil
+	return result[:ccrTagNum], nil
 }
 
 func (ai *CCRAPIClient) DescribeImagePersonal(secretID, secretKey,

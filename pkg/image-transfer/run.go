@@ -1023,7 +1023,7 @@ func (c *Client) GenCcrtoTcrTagURLPair(source string, target string, wg *sync.Wa
 			return err
 		}
 
-		sourceTags, err := ccrClient.GetRepoTags(ccrSecretID, ccrSecretKey, c.config.FlagConf.Config.CCRRegion, sourceURL.GetRepoWithNamespace())
+		sourceTags, err := ccrClient.GetRepoTags(ccrSecretID, ccrSecretKey, c.config.FlagConf.Config.CCRRegion, sourceURL.GetRepoWithNamespace(), int64(c.config.FlagConf.Config.CCRTagNums))
 		log.Debugf("ccr target %s tags is %s", sourceURL.GetOriginURL(), sourceTags)
 		if err != nil {
 			log.Errorf("Failed get ccr repo %s tags, error: %s", sourceURL.GetRepoWithNamespace(), err)
