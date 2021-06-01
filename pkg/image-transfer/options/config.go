@@ -24,18 +24,19 @@ import (
 
 // ConfigOptions 基础配置信息
 type ConfigOptions struct {
-	SecurityFile string
-	RuleFile string
-	RoutineNums int
-	RetryNums int
-	QPS int
-	DefaultRegistry string
+	SecurityFile     string
+	RuleFile         string
+	RoutineNums      int
+	RetryNums        int
+	QPS              int
+	DefaultRegistry  string
 	DefaultNamespace string
-	CCRToTCR bool
-	CCRRegion string
-	TCRRegion string
-	TCRName string
-	SecretFile string
+	CCRToTCR         bool
+	CCRRegion        string
+	CCRTagNums       int
+	TCRRegion        string
+	TCRName          string
+	SecretFile       string
 	// if target tag is exist override it
 	TagExistOverridden bool
 }
@@ -62,15 +63,17 @@ func (o *ConfigOptions) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&o.RuleFile, "ruleFile", o.RuleFile,
 		"Get images rules config from config file path")
 	fs.StringVar(&o.DefaultRegistry, "registry", o.DefaultRegistry,
-		"default destinate registry url when destinate registry is not " +
-		"given in the config file, can also be set with DEFAULT_REGISTRY environment value")
+		"default destinate registry url when destinate registry is not "+
+			"given in the config file, can also be set with DEFAULT_REGISTRY environment value")
 	fs.StringVar(&o.DefaultNamespace, "ns", o.DefaultNamespace,
-		"default destinate namespace when destinate namespace is not" +
-		" given in the config file, can also be set with DEFAULT_NAMESPACE environment value")
+		"default destinate namespace when destinate namespace is not"+
+			" given in the config file, can also be set with DEFAULT_NAMESPACE environment value")
 	fs.IntVar(&o.RoutineNums, "routines", 5,
 		"number of goroutines, default value is 5, max routines is 50")
 	fs.IntVar(&o.RetryNums, "retry", 2,
 		"number of retries, default value is 2")
+	fs.IntVar(&o.CCRTagNums, "ccrTagNums", 100,
+		"number of ccr recent tags for every repo, default value is 100, set 0 to sync all tag")
 	fs.IntVar(&o.QPS, "qps", 100,
 		"QPS of request, default value is 100, max is 30000")
 	fs.BoolVar(&o.CCRToTCR, "ccrToTcr", false,
