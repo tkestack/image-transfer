@@ -1,7 +1,9 @@
 # 镜像迁移工具：image-transfer
 
 `image-transfer` 是一个docker镜像迁移工具，用于对不同镜像仓库的镜像进行批量迁移。
+
 ## 特性
+
 - 支持多对多镜像仓库迁移
 - 支持腾讯云 TCR 个人版(CCR)一键全量迁移至企业版
 - 支持基于 Docker Registry V2搭建的docker镜像仓库服务 (如 腾讯云TCR个人版(CCR)/TCR企业版、Docker Hub、 Quay、 阿里云镜像服务ACR、 Harbor等)
@@ -14,11 +16,14 @@
 - 不依赖docker以及其他程序
 
 ## 模式
+
 tcr镜像迁移工具具有两种运行模式：
+
 - 通用模式：支持多种镜像仓库迁移
 - 腾讯云 CCR 一键全量迁移模式：腾讯云 TCR 个人版(CCR) -> TCR企业版
 
 ## 架构
+
 ![image](./docs/arch.png)
 
 ## 使用
@@ -28,7 +33,8 @@ tcr镜像迁移工具具有两种运行模式：
 在[releases](https://github.com/tkestack/image-transfer/releases)页面可下载源码以及二进制文件
 
 ### 手动编译
-```
+
+```bash
 git clone https://github.com/tkestack/image-transfer.git
 cd ./image-transfer
 
@@ -38,31 +44,38 @@ make
 
 ## 使用方法
 
-### 使用帮助：
+### 使用帮助
+
 ```shell
 ./image-transfer -h
 ```
 
 ### 使用示例1：通用模式
-设置镜像鉴权配置文件为 registry-secret.yaml，镜像迁移仓库规则文件为 transfer-rule.yaml，默认迁移目标为腾讯云 TCR 个人版：ccr.ccs.tencentyun.com，默认 namespace 为 default，并发数为 5，qps 设置为 100
-```
-./image-transfer --registry-secret-file=./registry-secret.yaml --transfer-rule-file=./transfer-rule.yaml \  
---ns=default --registry=ccr.ccs.tencentyun.com --routines=5 --retry=3 --qps=100
+
+设置镜像鉴权配置文件为 registry-secret.yaml，镜像迁移仓库规则文件为 transfer-rule.yaml，默认迁移目标为腾讯云 TCR 个人版：ccr.ccs.tencentyun.com，默认 namespace 为 default，并发数为 5，
+
+```shell
+./image-transfer --securityFile=./registry-secret.yaml --ruleFile=./transfer-rule.yaml \  
+--ns=default --registry=ccr.ccs.tencentyun.com --routines=5 --retry=3
 ```
 
 ### 使用示例2：腾讯云 CCR 一键全量迁移模式
+
 打开ccr迁移模式 ccrToTcr=true, 设置镜像仓库鉴权配置文件为 registry-secret.yaml，腾讯云 API 调用密钥配置文件为 tencentcloud-secret.yaml，默认个人版及企业版实例所在地域均为 ap-guangzhou（广州）
-TCR 企业版实例示例名称为 image-transfer, 并发数为 5，失败重试次数为 3，qps 设置为 100
-```
-./image-transfer --ccrToTcr=true --registry-secret-file=./registry-secret.yaml --tencentcloud-secret-file=./tencentcloud-secret.yaml \ 
---tcrName=image-transfer --tcrRegion=ap-guangzhou --ccrRegion=ap-guangzhou --routines=5 --retry=3 --qps=100
+TCR 企业版实例示例名称为 image-transfer, 并发数为 5，失败重试次数为 3
+
+```shell
+./image-transfer --ccrToTcr=true --securityFile=./registry-secret.yaml --secretFile=./tencentcloud-secret.yaml \ 
+--tcrName=image-transfer --tcrRegion=ap-guangzhou --ccrRegion=ap-guangzhou --routines=5 --retry=3
 ```
 
 ### 配置文件参考
+
 #### 腾讯云 API 密钥配置文件 tencentcloud-secret.yaml
+
 如需迁移至腾讯云容器镜像服务内，需配置腾讯云 API 调用密钥，可前往 控制台-访问管理-访问密钥-API密钥管理 获取密钥对。如果在同账号下将 TCR 个人版数据迁移至企业版实例内，可共用同一套密钥。
 
-```
+```yaml
 ccr:
     secretId: xxx
     secretKey: xxx
@@ -72,8 +85,10 @@ tcr:
 ```
 
 #### 镜像仓库鉴权配置文件 registry-secret.yaml
+
 配置源目标及迁移目标镜像仓库的访问凭证，即 Docker Login 所使用的用户名，密码。
-```
+
+```yaml
 ccr.ccs.tencentyun.com:
   username: xxx
   password: xxx
@@ -92,7 +107,9 @@ acr.cn-guangzhou.cr.aliyuncs.com:
 ```
 
 #### 镜像迁移仓库配置文件 transfer-rule.yaml
+
 配置镜像迁移规则，即镜像仓库，镜像版本在源目标及迁移目标内的映射关系。
-```
+
+```yaml
 demo-ns/nginx:latest : image-transfer.tencentcloudcr.com/demo-ns/nginx:latest
 ```
