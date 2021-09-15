@@ -800,11 +800,11 @@ func (c *Client) GenTagURLPair(source string, target string, wg *sync.WaitGroup)
 		return fmt.Errorf("url %s format error: %v", source, err)
 	}
 
-	// if dest is not specific, use default registry and namespace
+	// if dest is not specific, use default registry and src repo
 	if target == "" {
-		if c.config.FlagConf.Config.DefaultRegistry != "" && c.config.FlagConf.Config.DefaultNamespace != "" {
+		if c.config.FlagConf.Config.DefaultRegistry != "" {
 			target = c.config.FlagConf.Config.DefaultRegistry + "/" +
-				c.config.FlagConf.Config.DefaultNamespace + "/" + sourceURL.GetRepoWithTag()
+				sourceURL.GetNamespace() + "/" + sourceURL.GetRepoWithTag()
 		} else {
 			return fmt.Errorf("the default registry and namespace should not be nil if you want to use them")
 		}
