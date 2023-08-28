@@ -110,6 +110,12 @@ acr.cn-guangzhou.cr.aliyuncs.com:
 
 配置镜像迁移规则，即镜像仓库，镜像版本在源目标及迁移目标内的映射关系。
 
+注：目前只支持 repo、tag 级别，且可同时配置多条镜像迁移规则。
+
 ```yaml
+## tag
 demo-ns/nginx:latest : image-transfer.tencentcloudcr.com/demo-ns/nginx:latest
+## repo
+registry.hub.docker.com/{ns1}/{repo1}: image-transfer.tencentcloudcr.com/{ns1}/{repo1}
+registry.hub.docker.com/{ns2}/{repo2}: image-transfer.tencentcloudcr.com/{ns2}/{repo2}
 ```
