@@ -22,6 +22,8 @@ import (
 	"fmt"
 
 	"github.com/containers/image/v5/manifest"
+	specsv1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"tkestack.io/image-transfer/pkg/log"
 )
 
 // ManifestSchemaV2List describes a schema V2 manifest list
@@ -55,26 +57,80 @@ func ManifestHandler(m []byte, t string, i *ImageSource) ([]manifest.Manifest, e
 		return manifestInfoSlice, nil
 	} else if t == manifest.DockerV2ListMediaType {
 
-		manifestSchemaListInfo, err := manifest.Schema2ListFromManifest(m)
+		manifestSchemaListObj, err := manifest.Schema2ListFromManifest(m)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, manifestDescriptorElem := range manifestSchemaListInfo.Manifests {
+		var subManifestInfoSlice []manifest.Manifest
 
-			manifestByte, manifestType, err := i.source.GetManifest(i.ctx, &manifestDescriptorElem.Digest)
+		for _, manifestDescriptorElem := range manifestSchemaListObj.Manifests {
+
+			log.Infof("handle manifest OS:%s Architecture:%s ", manifestDescriptorElem.Platform.OS,
+				manifestDescriptorElem.Platform.Architecture)
+
+			subManifestByte, subManifestType, err := i.source.GetManifest(i.ctx, &manifestDescriptorElem.Digest)
 			if err != nil {
+				log.Errorf("Get manifest %v of OS:%s Architecture:%s for manifest list error: %v",
+					manifestDescriptorElem.Digest, manifestDescriptorElem.Platform.OS,
+					manifestDescriptorElem.Platform.Architecture, err)
 				return nil, err
 			}
 
-			platformSpecManifest, err := ManifestHandler(manifestByte, manifestType, i)
+			subManifest, err := ManifestHandler(subManifestByte, subManifestType, i)
 			if err != nil {
+				log.Errorf("Handle sub manifest error: %v", err)
 				return nil, err
 			}
 
-			manifestInfoSlice = append(manifestInfoSlice, platformSpecManifest...)
+			if subManifest != nil {
+				subManifestInfoSlice = append(subManifestInfoSlice, subManifest...)
+			}
 		}
+
+		return subManifestInfoSlice, nil
+	} else if t == specsv1.MediaTypeImageManifest {
+		// Handle OCI Image Manifest
+		manifestInfo, err := manifest.OCI1FromManifest(m)
+		if err != nil {
+			return nil, err
+		}
+		manifestInfoSlice = append(manifestInfoSlice, manifestInfo)
 		return manifestInfoSlice, nil
+	} else if t == specsv1.MediaTypeImageIndex {
+		// Handle OCI Image Index
+		ociIndexObj, err := manifest.OCI1IndexFromManifest(m)
+		if err != nil {
+			return nil, err
+		}
+
+		var subManifestInfoSlice []manifest.Manifest
+
+		for _, descriptor := range ociIndexObj.Manifests {
+
+			log.Infof("handle OCI manifest OS:%s Architecture:%s ", descriptor.Platform.OS,
+				descriptor.Platform.Architecture)
+
+			subManifestByte, subManifestType, err := i.source.GetManifest(i.ctx, &descriptor.Digest)
+			if err != nil {
+				log.Errorf("Get OCI manifest %v of OS:%s Architecture:%s for image index error: %v",
+					descriptor.Digest, descriptor.Platform.OS,
+					descriptor.Platform.Architecture, err)
+				return nil, err
+			}
+
+			subManifest, err := ManifestHandler(subManifestByte, subManifestType, i)
+			if err != nil {
+				log.Errorf("Handle OCI sub manifest error: %v", err)
+				return nil, err
+			}
+
+			if subManifest != nil {
+				subManifestInfoSlice = append(subManifestInfoSlice, subManifest...)
+			}
+		}
+
+		return subManifestInfoSlice, nil
 	}
 	return nil, fmt.Errorf("unsupported manifest type: %v", t)
 }

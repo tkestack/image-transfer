@@ -9,6 +9,7 @@ require (
 	github.com/emicklei/go-restful v2.15.0+incompatible
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0
+	github.com/opencontainers/image-spec v1.1.0-rc5
 	github.com/pkg/errors v0.9.1
 	github.com/skipor/goenv v0.0.0-20170219222015-cf3a15e6b664
 	github.com/spf13/cobra v1.1.3

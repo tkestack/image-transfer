@@ -7,6 +7,7 @@
 - 支持多对多镜像仓库迁移
 - 支持腾讯云 TCR 个人版(CCR)一键全量迁移至企业版
 - 支持基于 Docker Registry V2搭建的docker镜像仓库服务 (如 腾讯云TCR个人版(CCR)/TCR企业版、Docker Hub、 Quay、 阿里云镜像服务ACR、 Harbor等)
+- **新增：支持OCI镜像格式同步，包括OCI Image Manifest**
 - 支持自定义 qps 限速，避免迁移时对仓库造成过大压力
 - 同步不落盘，提升同步速度
 - 利用 pipeline 模型，提高任务执行效率
@@ -21,6 +22,18 @@ tcr镜像迁移工具具有两种运行模式：
 
 - 通用模式：支持多种镜像仓库迁移
 - 腾讯云 CCR 一键全量迁移模式：腾讯云 TCR 个人版(CCR) -> TCR企业版
+
+## 新增功能：OCI镜像同步
+
+image-transfer现在支持OCI镜像格式的同步，包括：
+
+- OCI Image Manifest (v1.0+)
+- Docker V2 Schema 2 格式
+
+### OCI镜像同步特性
+
+- **格式兼容**：支持Docker格式和OCI格式的镜像同步
+- **增量同步**：智能检测已存在的镜像，避免重复传输
 
 ## 架构
 
@@ -69,6 +82,15 @@ TCR 企业版实例示例名称为 image-transfer, 并发数为 5，失败重试
 --tcrName=image-transfer --tcrRegion=ap-guangzhou --ccrRegion=ap-guangzhou --routines=5 --retry=3
 ```
 
+### 使用示例3：OCI镜像同步模式
+
+同步OCI镜像：
+
+```shell
+./image-transfer --securityFile=./registry-secret.yaml --ruleFile=./transfer-rule.yaml \
+--routines=5 --retry=3
+```
+
 ### 配置文件参考
 
 #### 腾讯云 API 密钥配置文件 tencentcloud-secret.yaml
@@ -92,6 +114,7 @@ tcr:
 ccr.ccs.tencentyun.com:
   username: xxx
   password: xxx
+  insecure: true
 image-transfer.tencentcloudcr.com:
   username: xxx
   password: xxx
@@ -119,3 +142,21 @@ demo-ns/nginx:latest : image-transfer.tencentcloudcr.com/demo-ns/nginx:latest
 registry.hub.docker.com/{ns1}/{repo1}: image-transfer.tencentcloudcr.com/{ns1}/{repo1}
 registry.hub.docker.com/{ns2}/{repo2}: image-transfer.tencentcloudcr.com/{ns2}/{repo2}
 ```
+
+## 注意事项
+
+1. OCI镜像同步功能需要源和目标镜像仓库都支持OCI格式
+2. 建议在生产环境使用前先进行小规模测试
+
+## 故障排除
+
+如果遇到OCI镜像同步问题，可以尝试：
+
+1. 检查源和目标镜像仓库的OCI兼容性
+2. 减少并发数`--routines`避免网络压力过大
+3. 查看详细日志排查具体问题
+
+## 版本历史
+
+- v1.0.0: 初始版本，支持Docker镜像同步
+- v1.1.0: 新增OCI镜像同步功能
