@@ -22,6 +22,7 @@ import (
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/pkg/blobinfocache/memory"
 	"github.com/containers/image/v5/pkg/blobinfocache/none"
+	specsv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"tkestack.io/image-transfer/pkg/log"
 )
@@ -110,37 +111,71 @@ func (j *Job) Run() error {
 	}
 
 	//Push manifest list
-	if manifestType == manifest.DockerV2ListMediaType {
-		manifestSchemaListInfo, err := manifest.Schema2ListFromManifest(manifestByte)
-		if err != nil {
-			return err
-		}
-
+	if manifestType == manifest.DockerV2ListMediaType || manifestType == specsv1.MediaTypeImageIndex {
+		var manifestListObj interface{}
 		var subManifestByte []byte
 
-		// push manifest to target
-		for _, manifestDescriptorElem := range manifestSchemaListInfo.Manifests {
-
-			log.Infof("handle manifest OS:%s Architecture:%s ", manifestDescriptorElem.Platform.OS,
-				manifestDescriptorElem.Platform.Architecture)
-
-			subManifestByte, _, err = j.Source.source.GetManifest(j.Source.ctx, &manifestDescriptorElem.Digest)
+		if manifestType == manifest.DockerV2ListMediaType {
+			manifestListObj, err = manifest.Schema2ListFromManifest(manifestByte)
 			if err != nil {
-				log.Errorf("Get manifest %v of OS:%s Architecture:%s for manifest list error: %v",
-					manifestDescriptorElem.Digest, manifestDescriptorElem.Platform.OS,
-					manifestDescriptorElem.Platform.Architecture, err)
 				return err
 			}
-
-			if err := j.Target.PushManifest(subManifestByte); err != nil {
-				log.Errorf("Put manifest to %s/%s:%s error: %v", j.Target.GetRegistry(),
-					j.Target.GetRepository(), j.Target.GetTag(), err)
+		} else if manifestType == specsv1.MediaTypeImageIndex {
+			manifestListObj, err = manifest.OCI1IndexFromManifest(manifestByte)
+			if err != nil {
 				return err
 			}
+		}
 
-			log.Infof("Put manifest to %s/%s:%s os:%s arch:%s", j.Target.GetRegistry(), j.Target.GetRepository(),
-				j.Target.GetTag(), manifestDescriptorElem.Platform.OS, manifestDescriptorElem.Platform.Architecture)
+		// push manifest to target
+		if manifestType == manifest.DockerV2ListMediaType {
+			manifestSchemaListInfo := manifestListObj.(*manifest.Schema2List)
+			for _, manifestDescriptorElem := range manifestSchemaListInfo.Manifests {
 
+				log.Infof("handle manifest OS:%s Architecture:%s ", manifestDescriptorElem.Platform.OS,
+					manifestDescriptorElem.Platform.Architecture)
+
+				subManifestByte, _, err = j.Source.source.GetManifest(j.Source.ctx, &manifestDescriptorElem.Digest)
+				if err != nil {
+					log.Errorf("Get manifest %v of OS:%s Architecture:%s for manifest list error: %v",
+						manifestDescriptorElem.Digest, manifestDescriptorElem.Platform.OS,
+						manifestDescriptorElem.Platform.Architecture, err)
+					return err
+				}
+
+				if err := j.Target.PushManifest(subManifestByte); err != nil {
+					log.Errorf("Put manifest to %s/%s:%s error: %v", j.Target.GetRegistry(),
+						j.Target.GetRepository(), j.Target.GetTag(), err)
+					return err
+				}
+
+				log.Infof("Put manifest to %s/%s:%s os:%s arch:%s", j.Target.GetRegistry(), j.Target.GetRepository(),
+					j.Target.GetTag(), manifestDescriptorElem.Platform.OS, manifestDescriptorElem.Platform.Architecture)
+			}
+		} else if manifestType == specsv1.MediaTypeImageIndex {
+			ociIndexesObj := manifestListObj.(*manifest.OCI1Index)
+			for _, descriptor := range ociIndexesObj.Manifests {
+
+				log.Infof("handle OCI manifest OS:%s Architecture:%s ", descriptor.Platform.OS,
+					descriptor.Platform.Architecture)
+
+				subManifestByte, _, err = j.Source.source.GetManifest(j.Source.ctx, &descriptor.Digest)
+				if err != nil {
+					log.Errorf("Get OCI manifest %v of OS:%s Architecture:%s for image index error: %v",
+						descriptor.Digest, descriptor.Platform.OS,
+						descriptor.Platform.Architecture, err)
+					return err
+				}
+
+				if err := j.Target.PushManifest(subManifestByte); err != nil {
+					log.Errorf("Put OCI manifest to %s/%s:%s error: %v", j.Target.GetRegistry(),
+						j.Target.GetRepository(), j.Target.GetTag(), err)
+					return err
+				}
+
+				log.Infof("Put OCI manifest to %s/%s:%s os:%s arch:%s", j.Target.GetRegistry(), j.Target.GetRepository(),
+					j.Target.GetTag(), descriptor.Platform.OS, descriptor.Platform.Architecture)
+			}
 		}
 
 		// push manifest list to target
